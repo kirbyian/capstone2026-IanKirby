@@ -1,0 +1,21 @@
+# IntelliJ / PyCharm
+.idea/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Dataset / generated data
+data/
+
+# Virtual environments
+.venv/
+env/
+
+# MacOS
+.DS_Store
+
+# Outputs
+outputs/
+checkpoints/
+logs/
