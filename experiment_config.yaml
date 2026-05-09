@@ -7,6 +7,7 @@ general:
 dataset:
   name: cnn_dailymail
   version: "3.0.0"
+  s3_bucket: capstone-ik-distillation
 
   split_strategy:
     train_source: train
@@ -16,7 +17,7 @@ dataset:
     validation_count: 13000
 
     test_source: test
-    test_count: 11000
+    test_count: 10000
 
     id_storage: splits/cnn_dm_v3_ids_{train,val,test}.json
 
@@ -74,17 +75,11 @@ metrics:
     - rougeL
 
   runtime:
-    - latency_ms_per_example_p50
-    - latency_ms_per_example_p95
-    - tokens_per_second
+    - average inference time
 
   size:
     - num_parameters
     - checkpoint_size_mb
-
-  sanity_checks:
-    - degenerate_repetition_rate
-    - empty_or_too_short_outputs_rate
 
 experiments:
   - id: E1
@@ -92,7 +87,7 @@ experiments:
     model: facebook/bart-large-cnn
     quantization: none
     train: false
-    evaluate: true
+    evaluate: false
 
   - id: E2
     name: Teacher direct quant (bnb 8-bit)
@@ -100,18 +95,29 @@ experiments:
 
     quantization:
       method: bitsandbytes
-      weight_bits: 8
+      weight_bits: 8bit
       compute_dtype: fp16
+    train: false
+    evaluate: false
 
+  - id: E3
+    name: Teacher direct quant (bnb 4-bit)
+    model: facebook/bart-large-cnn
+
+    quantization:
+      method: bitsandbytes
+      weight_bits: 4bit
+      compute_dtype: fp16
     train: false
     evaluate: true
 
-  - id: E3
-    name: DQ-BART student (paper recipe)
+  - id: E4
+    name: DQ-BART student
     model: dq-bart-student
-    quantization: as_paper_or_int8_post
-    train: true
-    evaluate: true
+    # The model is quantized during training so no need to include quantization here
+    quantization: none
+    train: false
+    evaluate: false
 
 artifacts:
   results_dir: results/
@@ -122,5 +128,5 @@ artifacts:
 checkpoint_backup:
   enabled: true
   target: s3
-  s3_uri: s3://YOUR_BUCKET/YOUR_PREFIX/
+  s3_uri: s3://capstone-ik-distillation/checkpoints/
   sync_interval_minutes: 30
