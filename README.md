@@ -1,1 +1,3 @@
 # capstone2026-IanKirby
+This repository is for an MSc in AI Capstone project in the University of Galway.
+

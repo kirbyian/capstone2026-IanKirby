@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -216,3 +217,26 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+=======
+# IntelliJ / PyCharm
+.idea/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Dataset / generated data
+data/
+
+# Virtual environments
+.venv/
+env/
+
+# MacOS
+.DS_Store
+
+# Outputs
+outputs/
+checkpoints/
+logs/
+>>>>>>> master

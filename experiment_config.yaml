@@ -1,0 +1,132 @@
+baseline: facebook/bart-large-cnn
+
+general:
+  max_input_length: 512
+  max_target_length: 128
+
+dataset:
+  name: cnn_dailymail
+  version: "3.0.0"
+  s3_bucket: capstone-ik-distillation
+
+  split_strategy:
+    train_source: train
+    train_count: 100000
+
+    validation_source: validation
+    validation_count: 13000
+
+    test_source: test
+    test_count: 10000
+
+    id_storage: splits/cnn_dm_v3_ids_{train,val,test}.json
+
+hardware:
+  gpu: nvidia L41x
+  vram_gb: 94GB
+  ram_gb: 50
+  vcpu: 16
+  image: runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
+  template: runpod-torch-v240
+
+training:
+  seed: 42
+  precision: fp16
+
+  max_source_length: 1024
+  max_target_length: 128
+
+  per_device_train_batch_size: 2
+  per_device_eval_batch_size: 2
+
+  gradient_accumulation_steps: 16
+  effective_batch_size: 32
+
+  num_train_epochs: 20
+
+  eval_strategy: steps
+  eval_steps: 1000
+
+  save_strategy: steps
+  save_steps: 1000
+
+  save_total_limit: 3
+
+  load_best_model_at_end: true
+  metric_for_best_model: rougeL
+  greater_is_better: true
+
+  early_stopping:
+    enabled: true
+    patience_evals: 5
+
+decoding:
+  num_beams: 4
+  length_penalty: 2.0
+  min_length: 56
+  max_length: 142
+  no_repeat_ngram_size: 3
+  early_stopping: true
+
+metrics:
+  automatic:
+    - rouge1
+    - rouge2
+    - rougeL
+
+  runtime:
+    - average inference time
+
+  size:
+    - num_parameters
+    - checkpoint_size_mb
+
+experiments:
+  - id: E1
+    name: Teacher baseline
+    model: facebook/bart-large-cnn
+    quantization: none
+    train: false
+    evaluate: false
+
+  - id: E2
+    name: Teacher direct quant (bnb 8-bit)
+    model: facebook/bart-large-cnn
+
+    quantization:
+      method: bitsandbytes
+      weight_bits: 8bit
+      compute_dtype: fp16
+    train: false
+    evaluate: false
+
+  - id: E3
+    name: Teacher direct quant (bnb 4-bit)
+    model: facebook/bart-large-cnn
+
+    quantization:
+      method: bitsandbytes
+      weight_bits: 4bit
+      compute_dtype: fp16
+    train: false
+    evaluate: true
+
+  - id: E4
+    name: DQ-BART student
+    model: dq-bart-student
+    # The model is quantized during training so no need to include quantization here
+    quantization: none
+    train: false
+    evaluate: false
+
+artifacts:
+  results_dir: results/
+  checkpoints_dir: checkpoints/
+  generations_dir: outputs/generations/
+  env_freeze_file: env/pip_freeze.txt
+
+checkpoint_backup:
+  enabled: true
+  target: s3
+  s3_uri: s3://capstone-ik-distillation/checkpoints/
+  sync_interval_minutes: 30
