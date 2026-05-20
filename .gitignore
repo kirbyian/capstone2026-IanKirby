@@ -19,3 +19,13 @@ env/
 outputs/
 checkpoints/
 logs/
+.venv/
+data/
+models/
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.arrow
+*.dylib
