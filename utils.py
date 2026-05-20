@@ -1,11 +1,19 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 from datasets import load_dataset, load_from_disk
 import boto3
 import torch
 import yaml
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, BitsAndBytesConfig, AutoConfig
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+DQ_BART_REPO = PROJECT_ROOT / "external" / "dq-bart"
+
+sys.path.insert(0, str(DQ_BART_REPO))
+from quant.configuration_bart_quant import BartConfig as QBartConfig
+from quant.modeling_bart_quant import BartForConditionalGeneration as QBart
 
 #Load Experiment Config
 with open("experiment_config.yaml", "r") as file:
@@ -106,15 +114,38 @@ def get_model_size_mb(model):
     return total_bytes / (1024 ** 2)
 
 
-def load_model(model_source: str,device):
+def load_model(model_source: str, device):
+
     model_path = Path(model_source)
+
+    if "dq-bart" in str(model_path):
+        return load_dq_bart(model_path, device)
 
     if model_path.exists():
         print("Loading local model...")
-        config = AutoConfig.from_pretrained(model_source)
-        model = AutoModelForSeq2SeqLM.from_pretrained(model_path), AutoTokenizer.from_pretrained(model_path)
+
+
+        config = AutoConfig.from_pretrained(model_path)
+        config.encoder_layers = 3
+        config.decoder_layers = 1
+        config.num_hidden_layers = 3
+
+        tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn")
+
+        model = AutoModelForSeq2SeqLM.from_pretrained(
+            model_path,
+            config=config
+        )
+
         model.to(device)
-        return model, AutoTokenizer.from_pretrained(model_path), config
+        model.eval()
+
+        print("actual encoder layer count:", len(model.model.encoder.layers))
+        print("actual decoder layer count:", len(model.model.decoder.layers))
+        print("model class:", model.__class__)
+
+
+        return model, tokenizer, config
 
     else:
         print("Downloading model from Hugging Face...")
@@ -127,8 +158,14 @@ def load_model(model_source: str,device):
 
 
 def load_model_quantized(model_id: str,device,quantization_config):
-    print("Downloading quantized model from Hugging Face...")
 
+    if device.type != "cuda":
+        raise RuntimeError(
+            "bitsandbytes 4-bit/8-bit quantization requires CUDA. "
+            "Run this experiment on RunPod/NVIDIA GPU, or skip quantized experiments locally."
+        )
+
+    device_map = "auto" if device.type == "cuda" else None
     if quantization_config["weight_bits"]=="4bit":
         config = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -145,9 +182,57 @@ def load_model_quantized(model_id: str,device,quantization_config):
     model = AutoModelForSeq2SeqLM.from_pretrained(
         model_id,
         quantization_config=config,
-        device_map=device,  # single GPU;
-        low_cpu_mem_usage=False,
+        device_map=device_map,  # single GPU;
+        low_cpu_mem_usage=True,
     )
     model.generation_config.forced_bos_token_id = 0
     return model, AutoTokenizer.from_pretrained(model_id), config
+
+def load_dq_bart(model_path: str, device):
+    model_path = Path(model_path)
+
+    config = QBartConfig.from_pretrained(
+        model_path,
+        quantize_act=True,
+        weight_bits=8,
+        input_bits=8,
+        clip_val=2.5,
+        encoder_layers=3,
+        decoder_layers=1,
+    )
+
+    config.forced_bos_token_id = 0
+    config.forced_eos_token_id = 2
+    config.decoder_start_token_id = 2
+    config.eos_token_id = 2
+    config.pad_token_id = 1
+    config.bos_token_id = 0
+
+    tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn")
+
+    model = QBart(config)
+
+    model.forced_bos_token_id = 0
+    model.forced_eos_token_id = 2
+    model.decoder_start_token_id = 2
+    model.eos_token_id = 2
+    model.pad_token_id = 1
+    model.bos_token_id = 0
+
+    state_dict = torch.load(
+        model_path / "pytorch_model.bin",
+        map_location="cpu"
+    )
+
+    load_result = model.load_state_dict(state_dict, strict=False)
+
+    print("missing:", load_result.missing_keys[:20])
+    print("unexpected:", load_result.unexpected_keys[:20])
+    print("missing count:", len(load_result.missing_keys))
+    print("unexpected count:", len(load_result.unexpected_keys))
+
+    model.to(device)
+    model.eval()
+
+    return model, tokenizer, config
 

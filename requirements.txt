@@ -1,16 +1,26 @@
-torch
-transformers
-datasets
-evaluate
-tqdm
-psutil
-python-dotenv
-PyYAML
-accelerate
-sentencepiece
-safetensors
-boto3
-bitsandbytes>=0.46.1
-absl
-nltk
-rouge_score
+# Core ML stack
+torch>=2.4,<2.6
+transformers>=4.44,<4.47
+accelerate>=0.33,<1.0
+safetensors>=0.4.3
+
+# Datasets / evaluation
+datasets>=2.20,<3.0
+evaluate>=0.4.2,<0.5
+rouge_score>=0.1.2
+nltk>=3.8.1
+sentencepiece>=0.2.0
+
+# Utilities
+numpy>=1.26,<2.0
+tqdm>=4.66
+psutil>=5.9
+PyYAML>=6.0
+python-dotenv>=1.0
+boto3>=1.34
+
+# Quantization
+bitsandbytes>=0.42,<0.44
+
+# DQ-BART dependency
+absl-py>=2.0
