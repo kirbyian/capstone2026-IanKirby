@@ -1,0 +1,3 @@
+[submodule "external/dq-bart"]
+	path = external/dq-bart
+	url = https://github.com/kirbyian/dq-bart
