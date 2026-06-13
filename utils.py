@@ -6,7 +6,8 @@ from datasets import load_dataset, load_from_disk
 import boto3
 import torch
 import yaml
-from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, BitsAndBytesConfig, AutoConfig
+import json
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer, BitsAndBytesConfig, AutoConfig,BartConfig, BartForConditionalGeneration
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 DQ_BART_REPO = PROJECT_ROOT / "external" / "dq-bart"
@@ -161,8 +162,7 @@ def load_model_quantized(model_id: str,device,quantization_config):
 
     if device.type != "cuda":
         raise RuntimeError(
-            "bitsandbytes 4-bit/8-bit quantization requires CUDA. "
-            "Run this experiment on RunPod/NVIDIA GPU, or skip quantized experiments locally."
+            "bitsandbytes 4-bit/8-bit quantization requires CUDA."
         )
 
     device_map = "auto" if device.type == "cuda" else None
@@ -236,3 +236,58 @@ def load_dq_bart(model_path: str, device):
 
     return model, tokenizer, config
 
+def create_student_model(attention_heads,decoder_ffn_dim,encoder_ffn_dim, num_decoder_layers, num_encoder_layers):
+
+    config = BartConfig(
+        vocab_size=50265,
+        d_model=256,
+        encoder_layers=num_encoder_layers,
+        decoder_layers=num_decoder_layers,
+        encoder_attention_heads=attention_heads,
+        decoder_attention_heads=attention_heads,
+        encoder_ffn_dim=encoder_ffn_dim,
+        decoder_ffn_dim=decoder_ffn_dim,
+        max_position_embeddings=1024,
+        pad_token_id=1,
+        bos_token_id=0,
+        eos_token_id=2,
+        decoder_start_token_id=2,
+        forced_eos_token_id=2,
+    )
+
+    student = BartForConditionalGeneration(config)
+    student.save_pretrained("./students/bart_80mb_ga")
+
+def main():
+
+    with open("student_configs.json") as f:
+        configs = json.load(f)
+
+    for student in configs["students"]:
+
+        config = BartConfig(
+            vocab_size=student["vocab_size"],
+            d_model=student["d_model"],
+            encoder_layers=student["encoder_layers"],
+            decoder_layers=student["decoder_layers"],
+            encoder_attention_heads=student["encoder_attention_heads"],
+            decoder_attention_heads=student["decoder_attention_heads"],
+            encoder_ffn_dim=student["encoder_ffn_dim"],
+            decoder_ffn_dim=student["decoder_ffn_dim"],
+            max_position_embeddings=student["max_position_embeddings"],
+            pad_token_id=1,
+            bos_token_id=0,
+            eos_token_id=2,
+            decoder_start_token_id=2,
+            forced_eos_token_id=2
+        )
+
+        model = BartForConditionalGeneration(config)
+
+        output_dir = Path("students") / student["name"]
+        model.save_pretrained(output_dir)
+
+        print(f"Created {student['name']} in {output_dir}")
+
+if __name__ == "__main__":
+    main()
