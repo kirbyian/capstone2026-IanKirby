@@ -181,13 +181,13 @@ def main():
 
     parser.add_argument("--population_size", default=100, type=int)
     parser.add_argument("--generation_size", default=100, type=int)
-    parser.add_argument("-t", "--target_size", default=400, type=float)
+    parser.add_argument("-t", "--target_size", default=250, type=float)
 
     args = parser.parse_args()
     search_space = {
-        "num_encoder_layers": [3, 4, 6, 8, 10, 12],
-        "num_decoder_layers": [2, 3, 4, 6, 8, 12],
-        "attention_heads": [8, 16],
+        "num_encoder_layers": [2,3, 4, 6, 8, 10, 12],
+        "num_decoder_layers": [1,2, 3, 4, 6, 8, 12],
+        "attention_heads": [4,8, 16],
         "encoder_ffn_dim": [1024, 2048, 3072, 4096],
         "decoder_ffn_dim": [1024, 2048, 3072, 4096],
     }
