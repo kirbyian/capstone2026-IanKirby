@@ -99,7 +99,7 @@ class GA_search():
 
         # Define model using updated TransformerHparams class
         model = TransformerHparams(
-            d_model=768,
+            d_model=1024,
             num_encoder_layers=num_encoder_layers,
             num_decoder_layers=num_decoder_layers,
             heads=attention_heads,
