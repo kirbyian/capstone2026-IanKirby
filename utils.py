@@ -125,11 +125,7 @@ def load_model(model_source: str, device):
     if model_path.exists():
         print("Loading local model...")
 
-
         config = AutoConfig.from_pretrained(model_path)
-        config.encoder_layers = 3
-        config.decoder_layers = 1
-        config.num_hidden_layers = 3
 
         tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn")
 
@@ -196,9 +192,7 @@ def load_dq_bart(model_path: str, device):
         quantize_act=True,
         weight_bits=8,
         input_bits=8,
-        clip_val=2.5,
-        encoder_layers=3,
-        decoder_layers=1,
+        clip_val=2.5
     )
 
     config.forced_bos_token_id = 0
@@ -207,6 +201,7 @@ def load_dq_bart(model_path: str, device):
     config.eos_token_id = 2
     config.pad_token_id = 1
     config.bos_token_id = 0
+    config.early_stopping = 1
 
     tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn")
 

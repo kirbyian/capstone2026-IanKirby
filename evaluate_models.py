@@ -46,7 +46,7 @@ def evaluate_model(experiment):
     decoding_settings = experiment_config["decoding"]
 
     # Warmup the model for faster inference using validation
-    for example in test.select(range(1)):
+    for example in validation.select(range(10)):
         inputs, summary_reference = utils.preprocess(example, tokenizer,max_input_length)
         with torch.inference_mode():
             output_ids = model.generate(input_ids=inputs["input_ids"],
@@ -75,7 +75,7 @@ def evaluate_model(experiment):
 
     latencies_ms = []
 
-    eval_dataset = test.select(range(5))
+    eval_dataset = test
     for example in tqdm(eval_dataset):
         inputs, summary_reference = utils.preprocess(example, tokenizer,max_input_length)
 

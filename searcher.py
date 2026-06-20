@@ -35,7 +35,6 @@ class Genome(object):
             "num_encoder_layers",
             "num_decoder_layers",
             "attention_heads",
-            "d_model",
             "encoder_ffn_dim",
             "decoder_ffn_dim",
         ]
@@ -73,15 +72,6 @@ class GA_search():
                 return True
         return False
 
-    def is_valid_config(self,gene_param):
-        d_model = gene_param["d_model"]
-        heads = gene_param["attention_heads"]
-
-        return (
-                d_model % heads == 0
-                and  gene_param["encoder_ffn_dim"] >= d_model
-                and  gene_param["decoder_ffn_dim"] >= d_model
-    )
 
     def initialization(self):
         count = 0
@@ -91,8 +81,6 @@ class GA_search():
             for key in self.search_space:
                 gene_param[key] = random.choice(self.search_space[key])
 
-            if not self.is_valid_config(gene_param):
-                continue
             new_genome = Genome(gene_param)
             
             if len(self.population) > 0:
@@ -104,7 +92,6 @@ class GA_search():
     
     def fitness(self, genome):
         attention_heads = genome.gene_param["attention_heads"]
-        d_model = genome.gene_param["d_model"]
         num_encoder_layers = genome.gene_param["num_encoder_layers"]
         num_decoder_layers = genome.gene_param["num_decoder_layers"]
         encoder_ffn_dim=genome.gene_param["encoder_ffn_dim"]
@@ -112,7 +99,7 @@ class GA_search():
 
         # Define model using updated TransformerHparams class
         model = TransformerHparams(
-            d_model=d_model,
+            d_model=768,
             num_encoder_layers=num_encoder_layers,
             num_decoder_layers=num_decoder_layers,
             heads=attention_heads,
@@ -126,16 +113,14 @@ class GA_search():
 		
         flops = model.get_infer_flops()
         params = model.get_params()
-
-        
-        size_diff = abs(self.args.target_size - params)*4/1e6
-
-        params = model.get_params()
         size_mb = params * 4 / 1e6
+
+        size_diff = abs(self.args.target_size - params)*4/1e6
 
         print(f"Params: {params:,}")
         print(f"Size MB: {size_mb:.2f}")
 
+        size_diff = abs(self.args.target_size - params) * 4 / 1e6
         genome.fitness = flops/1e9 - size_diff
 
     def crossover_and_mutation(self, parents):
@@ -179,8 +164,6 @@ class GA_search():
             children.extend(self.crossover_and_mutation(parents))
 
         for genome in children:
-            if not self.is_valid_config(genome.gene_param):
-                continue
 
             while self.is_duplicate(genome):
                 genome.mutation(self.search_space)
@@ -202,15 +185,11 @@ def main():
 
     args = parser.parse_args()
     search_space = {
-        "num_encoder_layers": [3, 4, 6, 8, 10, 12],
-        "num_decoder_layers": [2, 3, 4, 6, 8, 12],
-
-        "d_model": [256, 384, 512, 768, 1024],
-
-        "attention_heads": [4, 8, 16],
-
-        "encoder_ffn_dim": [1024, 1536, 2048, 3072, 4096],
-        "decoder_ffn_dim": [1024, 1536, 2048, 3072, 4096],
+        "num_encoder_layers": [2,3, 4, 6, 8, 10, 12],
+        "num_decoder_layers": [1,2, 3, 4, 6, 8, 12],
+        "attention_heads": [4,8, 16],
+        "encoder_ffn_dim": [1024, 2048, 3072, 4096],
+        "decoder_ffn_dim": [1024, 2048, 3072, 4096],
     }
 
 
